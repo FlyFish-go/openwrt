@@ -1,0 +1,56 @@
+From: HW-A offline source review
+Subject: [PATCH] spi: qpic-snand: return raw page OOB to SPI-NAND core
+
+The raw page reader DMA-copies codeword OOB into the controller private
+oob_buf but leaves the OOB tail of the SPI memory op untouched. SPI-NAND
+core reads that tail for MTD_OPS_RAW, so userspace otherwise receives stale
+OOB bytes.
+
+Copy the accumulated OOB into the contiguous full-page-plus-OOB read buffer.
+Validate the expected op size and column before copying; leave main-only and
+OOB-only reads and raw writes unchanged.
+
+This is a 6.18.55-specific refreshed-context version of the reviewed
+15-insertion change.
+
+---
+diff --git a/drivers/spi/spi-qpic-snand.c b/drivers/spi/spi-qpic-snand.c
+index 6c825c4..47ef000 100644
+--- a/drivers/spi/spi-qpic-snand.c
++++ b/drivers/spi/spi-qpic-snand.c
+@@ -818,6 +818,7 @@ static int qcom_spi_read_page_raw(struct qcom_nand_controller *snandc,
+ 				  const struct spi_mem_op *op)
+ {
+ 	struct qpic_ecc *ecc_cfg = snandc->qspi->ecc;
++	struct mtd_info *mtd = snandc->qspi->mtd;
+ 	u8 *data_buf = NULL, *oob_buf = NULL;
+ 	int ret, cw;
+ 	u32 num_cw = snandc->qspi->num_cw;
+@@ -825,6 +826,15 @@ static int qcom_spi_read_page_raw(struct qcom_nand_controller *snandc,
+ 	if (snandc->qspi->page_rw)
+ 		data_buf = op->data.buf.in;
+ 
++	/*
++	 * The SPI-NAND core passes a contiguous page+OOB buffer for a
++	 * combined raw read. The column may also contain a plane-select bit.
++	 */
++	if (snandc->qspi->oob_rw &&
++	    (op->data.nbytes != mtd->writesize + mtd->oobsize ||
++	     (op->addr.val & (BIT(fls(mtd->writesize)) - 1))))
++		return -EINVAL;
++
+ 	oob_buf = snandc->qspi->oob_buf;
+ 	memset(oob_buf, 0xff, OOB_BUF_SIZE);
+ 
+@@ -839,6 +849,11 @@ static int qcom_spi_read_page_raw(struct qcom_nand_controller *snandc,
+ 			oob_buf += ecc_cfg->bytes;
+ 	}
+ 
++	/* The DMA target above is private; core reads OOB from the op tail. */
++	if (snandc->qspi->oob_rw)
++		memcpy((u8 *)op->data.buf.in + mtd->writesize,
++		       snandc->qspi->oob_buf, mtd->oobsize);
++
+ 	return 0;
+ }
+ 
