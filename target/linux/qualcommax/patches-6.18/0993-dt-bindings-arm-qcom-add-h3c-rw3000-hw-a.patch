@@ -1,0 +1,12 @@
+diff --git a/Documentation/devicetree/bindings/arm/qcom.yaml b/Documentation/devicetree/bindings/arm/qcom.yaml
+index 18b5ed0..8b1277f 100644
+--- a/Documentation/devicetree/bindings/arm/qcom.yaml
++++ b/Documentation/devicetree/bindings/arm/qcom.yaml
+@@ -282,6 +282,7 @@ properties:
+ 
+       - items:
+           - enum:
++              - h3c,rw3000-hw-a
+               - qcom,ipq5018-rdp432-c2
+               - tplink,archer-ax55-v1
+           - const: qcom,ipq5018
