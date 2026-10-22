@@ -1,0 +1,30 @@
+Subject: [qualcommax] correct IPQ5018 MDIO AHB clock phandles
+
+On the one stock RW3000 HW-A sample, MDIO0 at 0x88000 works when bound to
+GCC_MDIO1_AHB_CLK (ID 54). A separate external-only boot with MDIO0 and GMAC0
+disabled kept GCC_MDIO0_AHB_CLK (ID 53) active for 0x90000/MDIO1, observed
+GCC_MDIO1_AHB_CLK (ID 54) at count 0, read the external PHY IDs, passed LAN
+pings, and passed a bidirectional 16 MiB LAN1/CPU6 hash test. Both tests used
+default clock cleanup (no clk_ignore_unused). This supports the cross-reference
+correction for this board. It is not qualification across every IPQ5018 board.
+
+--- a/arch/arm64/boot/dts/qcom/ipq5018.dtsi
++++ b/arch/arm64/boot/dts/qcom/ipq5018.dtsi
+@@ -242,7 +242,7 @@
+ 			#address-cells = <1>;
+ 			#size-cells = <0>;
+ 
+-			clocks = <&gcc GCC_MDIO0_AHB_CLK>;
++			clocks = <&gcc GCC_MDIO1_AHB_CLK>;
+ 			clock-names = "gcc_mdio_ahb_clk";
+ 
+ 			status = "disabled";
+@@ -264,7 +264,7 @@
+ 			#address-cells = <1>;
+ 			#size-cells = <0>;
+ 
+-			clocks = <&gcc GCC_MDIO1_AHB_CLK>;
++			clocks = <&gcc GCC_MDIO0_AHB_CLK>;
+ 			clock-names = "gcc_mdio_ahb_clk";
+ 
+ 			status = "disabled";
