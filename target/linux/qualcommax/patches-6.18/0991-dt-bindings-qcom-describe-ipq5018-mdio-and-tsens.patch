@@ -1,0 +1,33 @@
+From: H3C HW-A mainline review
+Subject: [RFC] dt-bindings: qcom: describe existing IPQ5018 compatibles
+
+The IPQ5018 SoC DTS uses the existing driver compatibles. Accept its MDIO
+compatible pair and the single IPQ5018 TSENS compatible in their bindings.
+The MDIO driver matches qcom,ipq5018-mdio directly; it does not match the
+legacy qcom,ipq40xx-mdio fallback string, which is retained in the existing
+SoC DTS for compatibility with downstream consumers.
+
+--- a/Documentation/devicetree/bindings/net/qcom,ipq4019-mdio.yaml
++++ b/Documentation/devicetree/bindings/net/qcom,ipq4019-mdio.yaml
+@@ -14,6 +14,10 @@ properties:
+       - enum:
+           - qcom,ipq4019-mdio
+           - qcom,ipq5018-mdio
++
++      - items:
++          - const: qcom,ipq5018-mdio
++          - const: qcom,ipq40xx-mdio
+ 
+       - items:
+           - enum:
+--- a/Documentation/devicetree/bindings/thermal/qcom-tsens.yaml
++++ b/Documentation/devicetree/bindings/thermal/qcom-tsens.yaml
+@@ -19,5 +19,8 @@ properties:
+   compatible:
+     oneOf:
++      - description: IPQ5018 TSENS
++        const: qcom,ipq5018-tsens
++
+       - description: msm8960 TSENS based
+         items:
+           - enum:
