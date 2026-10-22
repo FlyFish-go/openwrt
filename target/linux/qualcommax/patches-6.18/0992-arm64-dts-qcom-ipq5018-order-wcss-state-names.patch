@@ -1,0 +1,27 @@
+From: H3C HW-A mainline review
+Subject: [RFC] arm64: dts: qcom: keep IPQ5018 WCSS states aligned with names
+
+Refresh against exact DTSI after preceding 6.18 patches. Reorder state values
+and names together; stop remains bit 1 and shutdown remains bit 0.
+
+--- a/arch/arm64/boot/dts/qcom/ipq5018.dtsi
++++ b/arch/arm64/boot/dts/qcom/ipq5018.dtsi
+@@ -906,14 +906,14 @@
+ 			clocks = <&gcc GCC_SLEEP_CLK_SRC>,
+ 				 <&gcc GCC_SYS_NOC_WCSS_AHB_CLK>;
+ 			clock-names = "sleep",
+ 				      "interconnect";
+ 
+-			qcom,smem-states = <&wcss_smp2p_out 0>,
+-					   <&wcss_smp2p_out 1>;
+-			qcom,smem-state-names = "shutdown",
+-						"stop";
++			qcom,smem-states = <&wcss_smp2p_out 1>,
++					   <&wcss_smp2p_out 0>;
++			qcom,smem-state-names = "stop",
++						"shutdown";
+ 
+ 			memory-region = <&q6_region>;
+ 
+ 			glink-edge {
+ 				interrupts = <GIC_SPI 179 IRQ_TYPE_EDGE_RISING>;
