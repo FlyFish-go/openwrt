@@ -172,8 +172,54 @@ linksys_mx_pre_upgrade() {
 	fi
 }
 
+h3c_hw_a_dec() { case "$1" in ''|*[!0-9]*) return 1 ;; esac
+	local value
+	value=$(printf '%s' "$1" | sed 's/^0*//')
+	[ -n "$value" ] || value=0
+	printf '%s\n' "$value"
+}
+h3c_hw_a_check_target() { local index dir offset size flags
+	index=$(find_mtd_index "$1") || return 1
+	dir="/sys/class/mtd/mtd$index"
+	[ -r "$dir/offset" ] && [ -r "$dir/size" ] && [ -r "$dir/flags" ] || return 1
+	offset=$(cat "$dir/offset") && size=$(cat "$dir/size") && flags=$(cat "$dir/flags") || return 1
+	offset=$(h3c_hw_a_dec "$offset") && size=$(h3c_hw_a_dec "$size") || return 1
+	[ "$offset" = "$2" ] && [ "$size" = "$3" ] || return 1
+	case "$flags:$4" in
+		0x400:writable|1024:writable|0x0:readonly|0:readonly) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+h3c_hw_a_platform_check_image() {
+	[ "$(board_name)" = 'h3c,rw3000-hw-a' ] || return 1
+	nand_do_platform_check 'h3c,rw3000-hw-a' "$1" || return 1
+	h3c_hw_a_check_target rootfs 9437184 41943040 writable && h3c_hw_a_check_target oem-recovery 51380224 41943040 readonly
+}
+h3c_hw_a_cmdline_exact() { local key=$1 expected=$2 arg value count=0
+	for arg in $(cat /proc/cmdline); do case "$arg" in "$key"=*) value=${arg#*=}; count=$((count + 1)) ;; esac; done
+	[ "$value" = "$expected" ] && { [ "$key" = root ] || [ "$count" -eq 1 ]; }
+}
+h3c_hw_a_platform_do_upgrade() { local index ubi
+	h3c_hw_a_platform_check_image "$1" || return 1
+	index=$(find_mtd_index rootfs) && ubi=$(nand_find_ubi rootfs) || return 1
+	[ -n "$ubi" ] && [ "${ubi##*/}" = ubi0 ] && [ "$(cat "/sys/class/ubi/${ubi##*/}/mtd_num")" = "$index" ] && [ "$(cat "/sys/class/ubi/${ubi##*/}_1/name")" = rootfs ] || return 1
+	h3c_hw_a_cmdline_exact ubi.mtd rootfs && h3c_hw_a_cmdline_exact root /dev/ubiblock0_1 || return 1
+	[ -z "$(find_mtd_index kernel 2>/dev/null)" ] || return 1
+	CI_UBIPART=rootfs; CI_KERN_UBIPART=rootfs; CI_ROOT_UBIPART=rootfs; CI_DATA_UBIPART=rootfs
+	CI_KERNPART=kernel; CI_ROOTPART=rootfs; CI_SKIP_KERNEL_MTD=1
+	nand_do_upgrade "$1"
+}
+
+
 platform_check_image() {
-	return 0;
+	case "$(board_name)" in
+	h3c,rw3000-hw-a)
+		h3c_hw_a_platform_check_image "$1"
+		;;
+	*)
+		return 0
+		;;
+	esac
 }
 
 platform_pre_upgrade() {
@@ -189,6 +235,9 @@ platform_pre_upgrade() {
 
 platform_do_upgrade() {
 	case "$(board_name)" in
+	h3c,rw3000-hw-a)
+		h3c_hw_a_platform_do_upgrade "$1"
+		;;
 	avm,fritzbox-4050)
 		sync
 		CI_KERNPART="fit0"

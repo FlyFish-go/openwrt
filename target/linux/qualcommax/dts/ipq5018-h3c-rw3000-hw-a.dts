@@ -1,0 +1,421 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+
+/dts-v1/;
+
+#include <dt-bindings/clock/qcom,gcc-ipq5018.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+
+/* H3C RW3000 HW-A: stock 256 MiB IPQ5018 wired board. */
+#include "ipq5018.dtsi"
+#include "ipq5018-ess.dtsi"
+
+/ {
+	model = "H3C RW3000 HW-A";
+	compatible = "h3c,rw3000-hw-a", "qcom,ipq5018";
+
+	aliases {
+		serial0 = &blsp1_uart1;
+		ethernet0 = &gmac0;
+		led-boot = &status_red;
+		led-failsafe = &status_red;
+		led-running = &status_green;
+		led-upgrade = &status_red;
+		label-mac-device = &gmac0;
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x0 0x40000000 0x0 0x10000000>;
+	};
+
+	reserved-memory {
+		/* Match this board's unchanged OEM secure-world reservation. */
+		tz@4ac00000 {
+			reg = <0x0 0x4ac00000 0x0 0x400000>;
+		};
+
+		/delete-node/ sbl@4aa00000;
+		firmware-sbl@4aa00000 {
+			reg = <0x0 0x4aa00000 0x0 0x100000>;
+			no-map;
+		};
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+		bootargs-append = " ubi.block=0,rootfs root=/dev/ubiblock0_1 rootfstype=squashfs coherent_pool=2M";
+	};
+};
+
+/* Board oscillator frequencies from the OEM Linux runtime FDT. */
+&sleep_clk {
+	clock-frequency = <32000>;
+};
+
+&xo_board_clk {
+	clock-div = <4>;
+	clock-mult = <1>;
+};
+
+/* Board-local NAND and wired topology definitions. */
+
+
+/* Fixed physical slots: only the low system slot is writable.
+ * Keep the high OEM recovery slot and all board data read-only.
+ */
+
+&qpic_bam {
+	status = "okay";
+};
+
+&qpic_nand {
+	pinctrl-0 = <&h3c_qspi_data_pins &h3c_qspi_cs_pins &h3c_qspi_clk_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		nand-ecc-engine = <&qpic_nand>;
+		/* Matched to the OEM banner; retain QPIC's mainline ECC/OOB layout. */
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "0:sbl1";
+				reg = <0x00000000 0x00080000>;
+				read-only;
+			};
+			partition@80000 {
+				label = "0:mibib";
+				reg = <0x00080000 0x00080000>;
+				read-only;
+			};
+			partition@100000 {
+				label = "0:bootconfig";
+				reg = <0x00100000 0x00040000>;
+				read-only;
+			};
+			partition@140000 {
+				label = "0:bootconfig1";
+				reg = <0x00140000 0x00040000>;
+				read-only;
+			};
+			partition@180000 {
+				label = "0:qsee_1";
+				reg = <0x00180000 0x00100000>;
+				read-only;
+			};
+			partition@280000 {
+				label = "0:qsee";
+				reg = <0x00280000 0x00100000>;
+				read-only;
+			};
+			partition@380000 {
+				label = "0:devcfg_1";
+				reg = <0x00380000 0x00040000>;
+				read-only;
+			};
+			partition@3c0000 {
+				label = "0:devcfg";
+				reg = <0x003c0000 0x00040000>;
+				read-only;
+			};
+			partition@400000 {
+				label = "0:cdt_1";
+				reg = <0x00400000 0x00040000>;
+				read-only;
+			};
+			partition@440000 {
+				label = "0:cdt";
+				reg = <0x00440000 0x00040000>;
+				read-only;
+			};
+			partition@480000 {
+				label = "0:appsblenv";
+				reg = <0x00480000 0x00080000>;
+				read-only;
+
+				/* Verified CRC-protected U-Boot ENV payload size, not the
+				 * containing 512 KiB MTD partition size. */
+				nvmem-layout {
+					compatible = "u-boot,env";
+					env-size = <0x40000>;
+
+					appsblenv_ethaddr: ethaddr {
+						#nvmem-cell-cells = <1>;
+					};
+				};
+			};
+			partition@500000 {
+				label = "0:appsbl_1";
+				reg = <0x00500000 0x00140000>;
+				read-only;
+			};
+			partition@640000 {
+				label = "0:appsbl";
+				reg = <0x00640000 0x00140000>;
+				read-only;
+			};
+			partition@780000 {
+				label = "0:art";
+				reg = <0x00780000 0x00100000>;
+				read-only;
+			};
+			partition@880000 {
+				label = "0:training";
+				reg = <0x00880000 0x00080000>;
+				read-only;
+			};
+			partition@900000 {
+				label = "rootfs";
+				reg = <0x00900000 0x02800000>;
+			};
+			partition@3100000 {
+				label = "oem-recovery";
+				reg = <0x03100000 0x02800000>;
+				read-only;
+			};
+			partition@5900000 {
+				label = "pdt_data";
+				reg = <0x05900000 0x00600000>;
+				read-only;
+			};
+			partition@5f00000 {
+				label = "pdt_data_1";
+				reg = <0x05f00000 0x00600000>;
+				read-only;
+			};
+			partition@6500000 {
+				label = "exp";
+				reg = <0x06500000 0x00100000>;
+				read-only;
+			};
+			partition@6600000 {
+				label = "plugin";
+				reg = <0x06600000 0x01700000>;
+				read-only;
+			};
+		};
+	};
+};
+
+
+/* OEM runtime DT assigns QSPI NAND to GPIO4-9; use IPQ5018 mainline functions. */
+&tlmm {
+	h3c_qspi_data_pins: h3c-qspi-data-state {
+		pins = "gpio4", "gpio5", "gpio6", "gpio7";
+		function = "qspi_data";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	h3c_qspi_cs_pins: h3c-qspi-cs-state {
+		pins = "gpio8";
+		function = "qspi_cs";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	h3c_qspi_clk_pins: h3c-qspi-clk-state {
+		pins = "gpio9";
+		function = "qspi_clk";
+		drive-strength = <8>;
+		bias-disable;
+	};
+};
+
+
+/*
+ * Wired topology validated on one unmodified 256 MiB RW3000 HW-A sample.
+ * LAN PHY-to-front-panel mapping: switch P2/P3/P4 -> LAN1/LAN2/LAN3.
+ * WAN is GMAC0's internal PHY7. QCA8337 CPU port 6 uses SGMII.
+ */
+
+&blsp1_uart1 {
+	pinctrl-0 = <&h3c_uart_gpio20_21_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&tlmm {
+	h3c_uart_gpio20_21_pins: h3c-uart-gpio20-21-state {
+		pins = "gpio20", "gpio21";
+		function = "blsp0_uart0";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	h3c_mdio_pins: h3c-mdio-state {
+		mdc-pins {
+			pins = "gpio36";
+			function = "mdc";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+
+		mdio-pins {
+			pins = "gpio37";
+			function = "mdio";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+	};
+
+	h3c_status_led_pins: h3c-status-led-state {
+		pins = "gpio23", "gpio24";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	h3c_keys_pins: h3c-keys-state {
+		pins = "gpio27", "gpio38";
+		function = "gpio";
+		bias-pull-up;
+	};
+};
+
+&mdio0 {
+	status = "okay";
+};
+
+&mdio1 {
+	status = "okay";
+	clock-frequency = <1562500>;
+	pinctrl-0 = <&h3c_mdio_pins>;
+	pinctrl-names = "default";
+
+	ethernet-switch@11 {
+		compatible = "qca,qca8337";
+		reg = <17>;
+		reset-gpios = <&tlmm 39 GPIO_ACTIVE_LOW>;
+
+		/* Register built-in PHYs after the switch reset and MDIO setup. */
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			switch_phy1: ethernet-phy@1 { reg = <1>; };
+			switch_phy2: ethernet-phy@2 { reg = <2>; };
+			switch_phy3: ethernet-phy@3 { reg = <3>; };
+		};
+
+		ethernet-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ethernet-port@2 {
+				reg = <2>;
+				label = "lan1";
+				phy-mode = "internal";
+				phy-handle = <&switch_phy1>;
+			};
+
+			ethernet-port@3 {
+				reg = <3>;
+				label = "lan2";
+				phy-mode = "internal";
+				phy-handle = <&switch_phy2>;
+			};
+
+			ethernet-port@4 {
+				reg = <4>;
+				label = "lan3";
+				phy-mode = "internal";
+				phy-handle = <&switch_phy3>;
+			};
+
+			ethernet-port@6 {
+				reg = <6>;
+				label = "cpu";
+				ethernet = <&gmac1>;
+				phy-mode = "sgmii";
+				qca,sgmii-enable-pll;
+
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+		};
+	};
+};
+
+&q6v5_wcss {
+	status = "disabled";
+};
+
+&usb {
+	status = "disabled";
+};
+
+&gmac0 {
+	status = "okay";
+	nvmem-cells = <&appsblenv_ethaddr 0>;
+	nvmem-cell-names = "mac-address";
+};
+
+&gmac1 {
+	status = "okay";
+	phy-mode = "sgmii";
+	nvmem-cells = <&appsblenv_ethaddr 1>;
+	nvmem-cell-names = "mac-address";
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+};
+
+&uniphy0 {
+	status = "okay";
+	assigned-clocks = <&uniphy0 UNIPHY_CLK_REF>;
+	assigned-clock-rates = <UNIPHY_REFCLK_25MHZ>;
+};
+
+/ {
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&h3c_status_led_pins>;
+		pinctrl-names = "default";
+
+		status_red: led-status-red {
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_STATUS;
+			gpios = <&tlmm 23 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		status_green: led-status-green {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_STATUS;
+			gpios = <&tlmm 24 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+
+	keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&h3c_keys_pins>;
+		pinctrl-names = "default";
+
+		button-reset {
+			label = "reset";
+			gpios = <&tlmm 27 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RESTART>;
+		};
+
+		button-wps-mesh {
+			label = "wps-mesh";
+			gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_WPS_BUTTON>;
+		};
+	};
+};

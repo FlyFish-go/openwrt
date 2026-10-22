@@ -209,6 +209,29 @@ define Device/glinet_gl-x2000
 endef
 TARGET_DEVICES += glinet_gl-x2000
 
+define Device/h3c_rw3000-hw-a
+	$(call Device/FitImage)
+	$(call Device/UbiFit)
+	DEVICE_VENDOR := H3C
+	DEVICE_MODEL := RW3000
+	DEVICE_VARIANT := HW-A
+	DEVICE_DTS := ipq5018-h3c-rw3000-hw-a
+	DEVICE_DTS_CONFIG := config@mp03.1
+	SUPPORTED_DEVICES := h3c,rw3000-hw-a
+	SOC := ipq5018
+	BLOCKSIZE := 128k
+	PAGESIZE := 2048
+	NAND_SIZE := 128m
+	DEVICE_PACKAGES := -kmod-ath11k-ahb -wpad-basic-mbedtls -uboot-envtools
+	# Bound the complete metadata-appended tar for the low 40-MiB UBI slot.
+	# With the validated 296 usable LEBs, rounded kernel/rootfs allocation
+	# plus provisioning leaves at least 20 LEBs (UBIFS requires 17).
+	# Bad-block-dependent UBI capacity still needs runtime validation.
+	IMAGE_SIZE := 33792k
+	IMAGES := sysupgrade.tar
+	IMAGE/sysupgrade.tar := sysupgrade-tar | append-metadata | check-size
+endef
+
 define Device/iodata_wn-dax3000gr
 	$(call Device/FitImageLzma)
 	DEVICE_VENDOR := I-O DATA
@@ -226,6 +249,7 @@ define Device/iodata_wn-dax3000gr
 	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
 		ipq-wifi-iodata_wn-dax3000gr
 endef
+TARGET_DEVICES += h3c_rw3000-hw-a
 TARGET_DEVICES += iodata_wn-dax3000gr
 
 define Device/linksys_ipq50xx_mx_base
